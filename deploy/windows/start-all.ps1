@@ -1,4 +1,4 @@
-# taobao-shopping-mcp Windows 一键启动（PowerShell 5.1+）
+﻿# taobao-shopping-mcp Windows 一键启动（PowerShell 5.1+）
 # 用法: powershell -NoProfile -ExecutionPolicy Bypass -File start-all.ps1
 # 幂等：每个环节在跑就跳过。路径按需修改下面三个变量。
 $ErrorActionPreference = 'Continue'
