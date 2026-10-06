@@ -58,6 +58,18 @@ want(想要) → asked(已请示) → carted(待加购) → paid(已支付) → 
 
 浏览类工具被登录墙拦截时，服务自动经 CDP 把浏览器带到对应登录页、截图，把二维码作为 **MCP image content** 附在返回里。支持 MCP image 的客户端（如 [Kelivo](https://github.com/kelivo-com/kelivo)）会直接在聊天窗口显示 —— 扫一下，跟 AI 说声"扫好了"，继续逛。30s 节流防反复截图。
 
+## 平台支持
+
+| | Linux 服务器（无头） | Windows |
+|---|---|---|
+| shopping-mcp / relay | ✅ | ✅ |
+| 常驻浏览器 | Xvfb + chromium（`deploy/` 样例） | 有头 Edge/Chrome + 窗口移屏幕外（`deploy/windows/`，含一键脚本） |
+| 登录态过期回码 | ✅ CDP 截图 | ✅ 同一套代码 |
+| 常驻机制 | systemd | 登录计划任务 / NSSM |
+| 已知坑 | — | Store 版 Python 文件虚拟化、窗口可见性（见 `deploy/windows/NOTES.md`） |
+
+macOS 理论可用（组件全跨平台），未实测，欢迎 PR。
+
 ## 部署（Linux 服务器，无头环境）
 
 依赖：node ≥18、python3 ≥3.10、Xvfb、chromium、git。
