@@ -18,7 +18,7 @@ async function withLoginQR(doWork) {
   } catch (e) {
     const msg = String(e.message || e);
     if (/human_login|登录|login|verification/i.test(msg)) {
-      const qr = await loginQRBase64();
+      const qr = await loginQRBase64('taobao');
       if (qr) {
         return {
           content: [
@@ -115,6 +115,16 @@ export const TOOL_DEFS = [
     inputSchema: { type: 'object', properties: {} },
   },
   {
+    name: 'shopping_login_qr',
+    description: '主动获取登录二维码：首次部署或登录态过期时，把浏览器带到登录页并截图二维码。默认淘宝；支持 taobao/douban/xhs。主人扫码后说声"扫好了"即可。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        site: { type: 'string', enum: ['taobao', 'douban', 'xhs'], description: '默认 taobao' },
+      },
+    },
+  },
+  {
     name: 'shopping_ping',
     description: '检查浏览通道（relay→浏览器→扩展）是否在线。',
     inputSchema: { type: 'object', properties: {} },
@@ -123,6 +133,18 @@ export const TOOL_DEFS = [
 
 export async function dispatch(name, args) {
   switch (name) {
+    case 'shopping_login_qr': {
+      const site = args.site || 'taobao';
+      const qr = await loginQRBase64(site);
+      if (!qr) return fail(`获取 ${site} 登录二维码失败：浏览器 CDP 不可达（端口 ${process.env.TAOBAO_CDP_PORT || 9223}），确认浏览器带着 --remote-debugging-port 启动`);
+      return {
+        content: [
+          { type: 'text', text: `${site} 登录二维码已截好（下面图片）。请主人用手机 App 扫码，完成后说声"扫好了"。二维码约 1-2 分钟过期，过期了再叫一次即可。` },
+          { type: 'image', data: qr, mimeType: 'image/png' },
+        ],
+      };
+    }
+
     case 'shopping_ping': {
       const up = await bPing();
       return up ? ok('浏览通道在线（relay → 浏览器扩展）')
