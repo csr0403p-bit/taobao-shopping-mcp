@@ -1,10 +1,10 @@
 // 工具面 —— 按"AI 伴侣的意愿"建模，底层走浏览器桥（taobao-mcp-bridge relay）
 // 支付永远不自动化：B 通道只浏览；加购/付款由用户按心愿单链接手动完成
 
-import * as wish from './wishlist.js';
+import * as wishlist from './wishlist.js';
 import { checkAddToCart } from './policy.js';
 import { bSearch, bDetail, bCart, bPing } from './backend-b.js';
-import { loginQRBase64 } from './cdp.js';
+import { loginQRBase64, addToCartReal } from './cdp.js';
 
 let POLICY = {};
 
@@ -101,7 +101,20 @@ export const TOOL_DEFS = [
     description: '翻心愿单：看自己收藏的心愿及状态（想要/已请示/待用户加购/已支付/已送达/被婉拒）。',
     inputSchema: {
       type: 'object',
-      properties: { status: { type: 'string', enum: wish.STATUS } },
+      properties: { status: { type: 'string', enum: wishlist.STATUS } },
+    },
+  },
+  {
+    name: 'shopping_cart_add',
+    description: '真实加购：通过常驻浏览器把商品直接加入用户的淘宝购物车（CDP 点击页面"加入购物车"按钮）。需要 config 的 policy.allowRealCart 开启。仍受家规约束；下单和付款永远不自动化——加进去之后由用户自己结算。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        wishId: { type: 'number', description: '心愿单 ID（走家规校验并更新状态）' },
+        itemId: { type: 'string', description: '商品 ID（与 wishId 二选一，直接加购不过家规）' },
+        url: { type: 'string', description: '商品 URL' },
+        sku: { type: 'string', description: '规格文案，须与页面 SKU 文字完全一致（先用 shopping_item_detail 查）' },
+      },
     },
   },
   {
@@ -168,37 +181,60 @@ export async function dispatch(name, args) {
     }
 
     case 'shopping_collect': {
-      const w = wish.addWish(args);
+      const w = wishlist.addWish(args);
       return ok(`收到心愿 #${w.id}「${w.title}」¥${w.price} —— 已放进心愿单（想要）`, w);
     }
 
     case 'shopping_ask_for': {
-      const w = wish.setStatus(args.wishId, 'asked', args.message);
-      const stats = wish.monthStats();
+      const w = wishlist.setStatus(args.wishId, 'asked', args.message);
+      const stats = wishlist.monthStats();
       return ok(
         `心愿 #${w.id} 已请示用户。对用户说：${args.message}\n` +
         `（本月已请示 ${stats.asked} 件，预估合计 ¥${stats.estimatedTotal} / 预算 ¥${POLICY.monthlyBudget ?? '∞'}）`, w);
     }
 
     case 'shopping_add_to_cart': {
-      const w = wish.getWish(args.wishId);
+      const w = wishlist.getWish(args.wishId);
       if (!w) return fail(`心愿 #${args.wishId} 不存在`);
       if (w.status !== 'want' && w.status !== 'asked') return fail(`心愿 #${w.id} 状态是 ${w.status}，不能操作`);
-      const stats = wish.monthStats();
-      const dayAdds = wish.listWishes().filter(x => x.cartedAt && x.cartedAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length;
+      const stats = wishlist.monthStats();
+      const dayAdds = wishlist.listWishes().filter(x => x.cartedAt && x.cartedAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length;
       const verdict = checkAddToCart(w, { ...POLICY, _dayAdds: dayAdds }, stats);
       if (!verdict.ok) {
         return fail(`家规拦截：\n- ${verdict.reasons.join('\n- ')}\n先和用户商量吧。`);
       }
-      wish.setStatus(w.id, 'carted', args.message || '');
+      wishlist.setStatus(w.id, 'carted', args.message || '');
       return ok(
         `「${w.title}」已标记为待用户加购。对用户说：${args.message || '这个我想要，链接在这里，帮我加进购物车好不好'}\n` +
         `链接：${w.url}\n（本部署只有浏览通道，加购和付款由用户完成）`, w);
     }
 
     case 'shopping_my_wishes': {
-      const items = wish.listWishes(args.status);
+      const items = wishlist.listWishes(args.status);
       return ok(`心愿单（${items.length} 条${args.status ? `，${args.status}` : ''}）：`, items);
+    }
+
+    case 'shopping_cart_add': {
+      if (!POLICY.allowRealCart) {
+        return fail('真实加购未开启：在 config.json 的 policy 里加 "allowRealCart": true 后重启服务。下单/付款在任何配置下都不会自动化。');
+      }
+      let url = args.url || null;
+      let target = null;
+      if (args.wishId) {
+        target = wishlist.getWish(args.wishId);
+        if (!target) return fail(`心愿 #${args.wishId} 不存在`);
+        if (target.status !== 'want' && target.status !== 'asked') return fail(`心愿 #${target.id} 状态是 ${target.status}，不能加购`);
+        const stats = wishlist.monthStats();
+        const dayAdds = wishlist.listWishes().filter(x => x.cartedAt && x.cartedAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length;
+        const verdict = checkAddToCart(target, { ...POLICY, _dayAdds: dayAdds }, stats);
+        if (!verdict.ok) return fail(`家规拦截：\n- ${verdict.reasons.join('\n- ')}\n先和用户商量吧。`);
+        url = url || target.url;
+      }
+      if (!url && args.itemId) url = `https://item.taobao.com/item.htm?id=${args.itemId}`;
+      if (!url) return fail('需要 wishId / itemId / url 之一');
+      const r = await addToCartReal(url, args.sku || (target && target.sku) || '');
+      if (r.ok && target) wishlist.setStatus(target.id, 'carted', r.skuPicked || target.note);
+      return ok(r.ok ? `${r.message}${r.skuPicked ? '（规格：' + r.skuPicked + '）' : ''}。付款由用户完成。` : r.message, r);
     }
 
     case 'shopping_pay_link': {
@@ -213,9 +249,9 @@ export async function dispatch(name, args) {
 
     case 'shopping_check_gifts': {
       return await withLoginQR(async () => {
-        const kw = wish.listWishes('carted').map(w => w.title).join(' ') || '';
+        const kw = wishlist.listWishes('carted').map(w => w.title).join(' ') || '';
         const r = await bCart(kw);
-        const mine = wish.listWishes().filter(w => ['carted', 'paid', 'delivered'].includes(w.status));
+        const mine = wishlist.listWishes().filter(w => ['carted', 'paid', 'delivered'].includes(w.status));
         return ok('购物车按心愿单关键词读取（只读）：', { cart: r, wishes: mine });
       });
     }

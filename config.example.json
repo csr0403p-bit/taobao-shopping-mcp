@@ -4,6 +4,7 @@
   "policy": {
     "perItemAskLimit": 200,
     "monthlyBudget": 1000,
-    "maxAddsPerDay": 5
+    "maxAddsPerDay": 5,
+    "allowRealCart": false
   }
 }
