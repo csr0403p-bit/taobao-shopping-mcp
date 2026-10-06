@@ -180,7 +180,7 @@ export async function dispatch(name, args) {
     }
 
     case 'shopping_pay_link': {
-      const pending = wish.pendingForRin();
+      const pending = wish.pendingForOwner();
       const lines = pending.map(w => `#${w.id} ${w.title} ¥${w.price}${w.status === 'carted' ? '（待加购）' : '（已请示）'} —— ${w.url}\n    理由：${w.reason || '—'}`);
       return ok(
         pending.length === 0

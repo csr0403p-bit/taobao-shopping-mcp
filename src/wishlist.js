@@ -67,7 +67,7 @@ export function listWishes(status) {
 }
 
 // 给主人看的待办清单：已请示未支付 + 已加购未支付
-export function pendingForRin() {
+export function pendingForOwner() {
   return load().items.filter(w => ['asked', 'carted'].includes(w.status));
 }
 
