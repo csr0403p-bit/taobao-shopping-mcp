@@ -1,5 +1,5 @@
 // 工具面 —— 按"AI 伴侣的意愿"建模，底层走浏览器桥（taobao-mcp-bridge relay）
-// 支付永远不自动化：B 通道只浏览；加购/付款由主人按心愿单链接手动完成
+// 支付永远不自动化：B 通道只浏览；加购/付款由用户按心愿单链接手动完成
 
 import * as wish from './wishlist.js';
 import { checkAddToCart } from './policy.js';
@@ -11,7 +11,7 @@ let POLICY = {};
 export function setPolicy(p) { POLICY = p || {}; }
 
 // B 通道报登录过期（human_login_or_verification / 登录墙）时，
-// 自动导航浏览器到登录页并截二维码，作为 image content 附在返回里，主人直接扫码。
+// 自动导航浏览器到登录页并截二维码，作为 image content 附在返回里，用户直接扫码。
 async function withLoginQR(doWork) {
   try {
     return await doWork();
@@ -66,7 +66,7 @@ export const TOOL_DEFS = [
   },
   {
     name: 'shopping_collect',
-    description: '心动了：把商品收进自己的心愿单（状态=想要）。reason 写下你为什么喜欢它，主人会看到的。',
+    description: '心动了：把商品收进自己的心愿单（状态=想要）。reason 写下你为什么喜欢它，用户会看到的。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -80,16 +80,16 @@ export const TOOL_DEFS = [
   },
   {
     name: 'shopping_ask_for',
-    description: '请示主人：正式请求购买某个心愿。会把心愿单条目置为"已请示"，返回要给主人看的话术。',
+    description: '请示用户：正式请求购买某个心愿。会把心愿单条目置为"已请示"，返回要给用户看的话术。',
     inputSchema: {
       type: 'object',
-      properties: { wishId: { type: 'number' }, message: { type: 'string', description: '想对主人说的话' } },
+      properties: { wishId: { type: 'number' }, message: { type: 'string', description: '想对用户说的话' } },
       required: ['wishId', 'message'],
     },
   },
   {
     name: 'shopping_add_to_cart',
-    description: '请求加购：当前部署只有浏览通道，不能自动加购。本工具会把心愿标记为"待主人加购"并生成给主人的话术（含商品链接），由主人点开链接手动加入购物车并付款。',
+    description: '请求加购：当前部署只有浏览通道，不能自动加购。本工具会把心愿标记为"待用户加购"并生成给用户的话术（含商品链接），由用户点开链接手动加入购物车并付款。',
     inputSchema: {
       type: 'object',
       properties: { wishId: { type: 'number' }, message: { type: 'string' } },
@@ -98,7 +98,7 @@ export const TOOL_DEFS = [
   },
   {
     name: 'shopping_my_wishes',
-    description: '翻心愿单：看自己收藏的心愿及状态（想要/已请示/待主人加购/已支付/已送达/被婉拒）。',
+    description: '翻心愿单：看自己收藏的心愿及状态（想要/已请示/待用户加购/已支付/已送达/被婉拒）。',
     inputSchema: {
       type: 'object',
       properties: { status: { type: 'string', enum: wish.STATUS } },
@@ -106,17 +106,17 @@ export const TOOL_DEFS = [
   },
   {
     name: 'shopping_pay_link',
-    description: '把待支付清单递给主人：返回待办心愿的商品链接清单，由主人自己打开、加购、付款。付款永远由主人完成。',
+    description: '把待支付清单递给用户：返回待办心愿的商品链接清单，由用户自己打开、加购、付款。付款永远由用户完成。',
     inputSchema: { type: 'object', properties: {} },
   },
   {
     name: 'shopping_check_gifts',
-    description: '查礼物：按心愿单关键词读淘宝购物车里已有的条目（只读），对照心愿状态，看主人有没有偷偷买。',
+    description: '查礼物：按心愿单关键词读淘宝购物车里已有的条目（只读），对照心愿状态，看用户有没有偷偷买。',
     inputSchema: { type: 'object', properties: {} },
   },
   {
     name: 'shopping_login_qr',
-    description: '主动获取登录二维码：首次部署或登录态过期时，把浏览器带到登录页并截图二维码。默认淘宝；支持 taobao/douban/xhs。主人扫码后说声"扫好了"即可。',
+    description: '主动获取登录二维码：首次部署或登录态过期时，把浏览器带到登录页并截图二维码。默认淘宝；支持 taobao/douban/xhs。用户扫码后说声"扫好了"即可。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -139,7 +139,7 @@ export async function dispatch(name, args) {
       if (!qr) return fail(`获取 ${site} 登录二维码失败：浏览器 CDP 不可达（端口 ${process.env.TAOBAO_CDP_PORT || 9223}），确认浏览器带着 --remote-debugging-port 启动`);
       return {
         content: [
-          { type: 'text', text: `${site} 登录二维码已截好（下面图片）。请主人用手机 App 扫码，完成后说声"扫好了"。二维码约 1-2 分钟过期，过期了再叫一次即可。` },
+          { type: 'text', text: `${site} 登录二维码已截好（下面图片）。请用户用手机 App 扫码，完成后说声"扫好了"。二维码约 1-2 分钟过期，过期了再叫一次即可。` },
           { type: 'image', data: qr, mimeType: 'image/png' },
         ],
       };
@@ -176,7 +176,7 @@ export async function dispatch(name, args) {
       const w = wish.setStatus(args.wishId, 'asked', args.message);
       const stats = wish.monthStats();
       return ok(
-        `心愿 #${w.id} 已请示主人。对主人说：${args.message}\n` +
+        `心愿 #${w.id} 已请示用户。对用户说：${args.message}\n` +
         `（本月已请示 ${stats.asked} 件，预估合计 ¥${stats.estimatedTotal} / 预算 ¥${POLICY.monthlyBudget ?? '∞'}）`, w);
     }
 
@@ -188,12 +188,12 @@ export async function dispatch(name, args) {
       const dayAdds = wish.listWishes().filter(x => x.cartedAt && x.cartedAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length;
       const verdict = checkAddToCart(w, { ...POLICY, _dayAdds: dayAdds }, stats);
       if (!verdict.ok) {
-        return fail(`家规拦截：\n- ${verdict.reasons.join('\n- ')}\n先和主人商量吧。`);
+        return fail(`家规拦截：\n- ${verdict.reasons.join('\n- ')}\n先和用户商量吧。`);
       }
       wish.setStatus(w.id, 'carted', args.message || '');
       return ok(
-        `「${w.title}」已标记为待主人加购。对主人说：${args.message || '这个我想要，链接在这里，帮我加进购物车好不好'}\n` +
-        `链接：${w.url}\n（本部署只有浏览通道，加购和付款由主人完成）`, w);
+        `「${w.title}」已标记为待用户加购。对用户说：${args.message || '这个我想要，链接在这里，帮我加进购物车好不好'}\n` +
+        `链接：${w.url}\n（本部署只有浏览通道，加购和付款由用户完成）`, w);
     }
 
     case 'shopping_my_wishes': {
@@ -207,7 +207,7 @@ export async function dispatch(name, args) {
       return ok(
         pending.length === 0
           ? '现在没有待处理的心愿'
-          : `给主人的清单（点开链接→选规格→加购物车→付款）：\n${lines.join('\n')}`,
+          : `给用户的清单（点开链接→选规格→加购物车→付款）：\n${lines.join('\n')}`,
         { pending });
     }
 

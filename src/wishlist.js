@@ -1,4 +1,4 @@
-// 心愿单 —— 她自己的的"购物车"，独立于主人淘宝账号里的真实购物车
+// 心愿单 —— 她自己的的"购物车"，独立于用户淘宝账号里的真实购物车
 // 状态机: want(想要) → asked(已请示) → carted(已加购) → paid(已支付) → delivered(已送达)
 //          任何非终态 → declined(被婉拒)；paid 之后由 check_gifts 对账
 
@@ -66,7 +66,7 @@ export function listWishes(status) {
   return status ? items.filter(w => w.status === status) : items;
 }
 
-// 给主人看的待办清单：已请示未支付 + 已加购未支付
+// 给用户看的待办清单：已请示未支付 + 已加购未支付
 export function pendingForOwner() {
   return load().items.filter(w => ['asked', 'carted'].includes(w.status));
 }

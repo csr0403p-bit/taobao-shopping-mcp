@@ -7,7 +7,7 @@ export function checkAddToCart(wish, policy, monthStats) {
 
   const price = Number(wish.price) || 0;
   if (price > perItemAskLimit && wish.status !== 'asked') {
-    reasons.push(`单价 ¥${price} 超过免请示上限 ¥${perItemAskLimit}，必须先请示主人同意（status=asked）后才能加购`);
+    reasons.push(`单价 ¥${price} 超过免请示上限 ¥${perItemAskLimit}，必须先请示用户同意（status=asked）后才能加购`);
   }
   if (price > 0 && monthStats.estimatedTotal + price > monthlyBudget) {
     reasons.push(`本月预估 ¥${(monthStats.estimatedTotal + price).toFixed(2)} 将超出月度预算 ¥${monthlyBudget}`);
