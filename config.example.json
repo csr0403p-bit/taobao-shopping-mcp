@@ -1,0 +1,9 @@
+{
+  "port": 3980,
+  "token": "CHANGE_ME_long_random_token",
+  "policy": {
+    "perItemAskLimit": 200,
+    "monthlyBudget": 1000,
+    "maxAddsPerDay": 5
+  }
+}

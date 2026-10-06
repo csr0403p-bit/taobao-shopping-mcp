@@ -1,0 +1,24 @@
+diff --git a/taobao_web_engine.py b/taobao_web_engine.py
+index 9cc127d..048ee48 100644
+--- a/taobao_web_engine.py
++++ b/taobao_web_engine.py
+@@ -323,6 +323,19 @@ class WebEngine:
+         filter_word = "" if action == "search" else keyword
+         script = _LIST_JS.replace("__ROOT__", root).replace("__KEYWORD__", json.dumps(filter_word, ensure_ascii=True))
+         data = self._read(script, _BROWSE_HOSTS)
++        # PATCH(shopping-mcp): 本机到淘宝 CDN 首开时延不稳定，商品区常晚渲染；
++        # 空结果时等待重读，第2/4轮先 reload（二载走缓存明显更快）。
++        # _read 内部对登录墙/验证码等仍然立即 _fail，不受此重试影响。
++        for _attempt in range(5):
++            if data.get("items"):
++                break
++            if _attempt in (1, 3):
++                try:
++                    self._command("eval", "location.reload()")
++                except Exception:
++                    pass
++            time.sleep(4)
++            data = self._read(script, _BROWSE_HOSTS)
+         if data.get("missing_root"):
+             _fail("list_layout_unsupported", "未识别到商品列表容器，未读取账号或无关页面区域。")
+         items = []

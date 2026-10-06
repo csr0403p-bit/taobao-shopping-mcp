@@ -1,0 +1,14 @@
+{
+  "name": "shopping-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI 伴侣的淘宝逛街 MCP —— 逛商品/心愿单/请示加购，支付永远由主人完成",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
