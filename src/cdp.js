@@ -66,8 +66,6 @@ export async function loginQRBase64(siteName = 'taobao') {
       try {
         const call = cdpCall(ws);
         await call('Page.enable');
-        await call('Page.navigate', { url });
-        await new Promise(r => setTimeout(r, 6000));  // 等商品页渲染
         await call('Page.navigate', { url: site.login });
         await new Promise(r => setTimeout(r, QR_WAIT_MS));
         if (site.toggle) {
