@@ -139,14 +139,14 @@ async function dragCaptcha(call) {
   for (let i = 1; i <= steps; i++) {
     const p = i / steps;
     const ease = 1 - Math.pow(1 - p, 2.2);           // 先快后慢
-    let cx = x + dx * ease;
-    if (i === steps) cx -= 3;                        // 回拉一点拟人
+    // 关键（人工实测）：该滑块必须拖出轨道最右端才判过——终点 overshoot 22px
+    let cx = x + (dx + 22) * ease;
     const cy = y + (Math.sin(i * 1.7) * 1.5);        // y 抖动
     await mouse('mouseMoved', cx, cy);
     await new Promise(r => setTimeout(r, 14 + Math.random() * 22));
   }
   await new Promise(r => setTimeout(r, 150));
-  await mouse('mouseReleased', x + dx - 3, y);
+  await mouse('mouseReleased', x + dx + 22, y);
   return true;
 }
 
