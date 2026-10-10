@@ -1,17 +1,57 @@
 diff --git a/taobao_web_engine.py b/taobao_web_engine.py
-index 9cc127d..048ee48 100644
+index 9cc127d..7cbd326 100644
 --- a/taobao_web_engine.py
 +++ b/taobao_web_engine.py
-@@ -323,6 +323,19 @@ class WebEngine:
+@@ -85,6 +85,33 @@ const base = {url:location.href, title:document.title, visibility:document.visib
+ const denied = all('iframe[src*="login"],input[type="password"],#nocaptcha,.nc-container,[id*="baxia-dialog"]').length > 0;
+ """
+ 
++# PATCH(shopping-mcp): 关弹窗 JS —— Escape + 点高层级 fixed 弹层里的小关闭钮。
++# 淘宝首页/搜索页的红包等活动弹窗会盖住商品区导致读不到，先关再读。
++_CLOSE_POPUP_JS = "(() => {\n" + r"""
++  let closed = 0;
++  try {
++    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', keyCode: 27, bubbles: true}));
++    closed += 1;
++  } catch (e) {}
++  const layers = [...document.querySelectorAll('div')].filter(d => {
++    const st = getComputedStyle(d);
++    return st.position === 'fixed' && parseInt(st.zIndex || 0) >= 100
++      && d.offsetWidth > innerWidth * 0.3 && d.offsetHeight > 200;
++  });
++  for (const layer of layers) {
++    const closes = layer.querySelectorAll('[class*="close" i], [class*="shut" i], [aria-label*="关闭"], [aria-label*="close" i]');
++    let did = false;
++    for (const c of closes) {
++      const r = c.getBoundingClientRect();
++      if (r.width > 0 && r.width <= 80 && r.height <= 80) { c.click(); closed += 1; did = true; break; }
++    }
++    // 无关闭钮可点的弹层容器（如 J_MIDDLEWARE_FRAME_WIDGET，内容在 iframe 里）直接移除
++    if (!did) { layer.remove(); closed += 1; }
++  }
++  return closed;
++})()
++"""
++
+ _LIST_JS = "(() => {\n" + _DOM_COMMON + r"""
+ /* taobao-web:list: visible product links only; no scrolling or requests. */
+ const keyword = __KEYWORD__;
+@@ -323,6 +350,25 @@ class WebEngine:
          filter_word = "" if action == "search" else keyword
          script = _LIST_JS.replace("__ROOT__", root).replace("__KEYWORD__", json.dumps(filter_word, ensure_ascii=True))
          data = self._read(script, _BROWSE_HOSTS)
-+        # PATCH(shopping-mcp): 本机到淘宝 CDN 首开时延不稳定，商品区常晚渲染；
++        # PATCH(sumi): 本机到淘宝 CDN 首开时延不稳定，商品区常晚渲染；
 +        # 空结果时等待重读，第2/4轮先 reload（二载走缓存明显更快）。
 +        # _read 内部对登录墙/验证码等仍然立即 _fail，不受此重试影响。
-+        for _attempt in range(5):
++        for _attempt in range(6):
 +            if data.get("items"):
 +                break
++            # PATCH(shopping-mcp): 先关弹窗再重读（红包/活动 modal 盖住商品区）
++            try:
++                self._command("eval", _CLOSE_POPUP_JS, tab=False)
++            except Exception:
++                pass
++            time.sleep(1)
 +            if _attempt in (1, 3):
 +                try:
 +                    self._command("eval", "location.reload()")
